@@ -5,6 +5,7 @@ It also hides news and all images from the corresponding tab for blocked sites.
 
 Works in Google Chrome with the following search engines:
 1. DuckDuckGo
+2. Google
 
 ## How to Install
 1. Install .zip archive from Releases
@@ -15,4 +16,4 @@ Works in Google Chrome with the following search engines:
 6. Done
 
 ## ToDo
-- [ ] Add support for Google Search Engine
+- [X] Add support for Google Search Engine
