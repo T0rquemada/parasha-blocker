@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Parasha Blocker",
+  "version": "1.0",
+  "description": "A Google Chrome extension that hides all russian and pro-russian websites in search results.",
+  "content_scripts": [
+    {
+      "matches": [
+        "*://duckduckgo.com/*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}
