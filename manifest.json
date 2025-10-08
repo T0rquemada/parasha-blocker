@@ -7,9 +7,16 @@
     {
       "matches": [
         "*://duckduckgo.com/*",
-        "*://www.google.com/search*"
+        "*://www.google.com/search*",
+        "*://www.bing.com/search*"
       ],
       "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["parashaList.txt"],
+      "matches": ["<all_urls>"]
     }
   ]
 }

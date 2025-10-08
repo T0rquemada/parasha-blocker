@@ -1,10 +1,18 @@
-// List of domains to block. If a link contains any of these domains, it will be hidden
-const parashaList = [".ru", ".by", ".kz", ".kg", "yandex", "vk.com", "vk.me"];
+// List of domains to block
+let parashaList = [];
 
 // Removes an element from the page
 function removeElement(el)
 {
     el.remove();
+}
+
+function handleLink(link, targetBlock)
+{
+    if(parashaList.some(domain => link.includes(domain))) 
+    {
+        removeElement(targetBlock);
+    }
 }
 
 // Function to process search results for the DuckDuckGo search engine
@@ -13,22 +21,22 @@ function duckDuckGo()
     // "All" tab
     document.querySelectorAll('a[data-testid="result-title-a"]').forEach(link => 
     {
-        if(parashaList.some(domain => link.href.includes(domain))) 
-        {
-            removeElement(link.closest("article"));
-        }
+        const linkHref = link.href;
+        handleLink(linkHref, link.closest("article"));
     });
+
+    // Images on "All" tab
+    document.querySelectorAll(".pmq91M1H9uYaJG_lxmPg").forEach(el => {
+        const link = el.querySelector(".SdDhImKi0Wx51uB1gMgj").textContent;
+        handleLink(link, el);
+    })
 
     // "Images" tab
     document.querySelectorAll(".nsogf_Hpj9UUxfhcwQd5").forEach(imgBlock =>
     {
         const link = imgBlock.querySelector(".iHufrGzRLnW5Wh3koaLG");
-
-        if(link && parashaList.some(domain => link.textContent.includes(domain))) 
-        {
-            const imageListItem = imgBlock.parentNode;
-            removeElement(imageListItem);
-        }
+        const imageDiv = imgBlock.parentNode;
+        handleLink(link.textContent, imageDiv);
     });
 
     // "News" tab
@@ -40,10 +48,7 @@ function duckDuckGo()
         }
 
         const link  = linkDiv.querySelector("span").textContent;
-        if(parashaList.some(domain => link.includes(domain)))
-        {
-            removeElement(newsBlock);
-        }
+        handleLink(link, newsBlock);
     });
 }
 
@@ -67,13 +72,40 @@ function google()
     })
 }
 
+function bing()
+{
+    document.querySelectorAll(".b_algo").forEach(el => {
+        const link = el.querySelector(".b_attribution").querySelector('cite').textContent; 
+        handleLink(link, el);
+    });
+}
+
 function main() 
 {
     duckDuckGo();
     google();
+    bing();
 }
 
-main();
+// Load parashaList from .txt file
+async function loadParashaList()
+{
+    try
+    {
+        const url = chrome.runtime.getURL('parashaList.txt');
+        const response = await fetch(url);
+        const text = await response.text();
+        parashaList = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        
+        main();
+        const observer = new MutationObserver(main);
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+    catch(error)
+    {
+        console.error('Failed to load parashaList.txt:', error);
+    }
+}
 
-const observer = new MutationObserver(main);
-observer.observe(document.body, { childList: true, subtree: true });
+// Initialize
+loadParashaList();
