@@ -47,9 +47,30 @@ function duckDuckGo()
     });
 }
 
+function google()
+{
+    // "All" tab
+    document.querySelectorAll(".MjjYud").forEach(block => 
+    {
+        const linkEl = block.querySelector(".zReHs");
+
+        if(linkEl === null)
+        {
+            return;
+        }
+
+        const linkHref = linkEl.href;
+        if(parashaList.some(domain => linkHref.includes(domain)))
+        {
+            removeElement(block);
+        }
+    })
+}
+
 function main() 
 {
     duckDuckGo();
+    google();
 }
 
 main();
