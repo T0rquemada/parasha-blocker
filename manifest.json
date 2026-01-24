@@ -10,13 +10,25 @@
         "*://www.google.com/search*",
         "*://www.bing.com/search*"
       ],
-      "js": ["content.js"]
+      "js": [
+        "content.js"
+      ]
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["parashaList.txt"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "parashaList.txt"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "parasha-blocker@nonexample.com",
+      "strict_min_version": "109.0"
+    }
+  }
 }

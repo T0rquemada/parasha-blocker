@@ -1,111 +1,104 @@
-// List of domains to block
-let parashaList = [];
+// 1. Robust API detection (Checks global scope, not just window)
+// This safely grabs 'browser' (Firefox) or falls back to 'chrome' (Chromium)
+const browserAPI = (typeof browser !== 'undefined') ? browser : chrome;
 
-// Removes an element from the page
-function removeElement(el)
-{
-    el.remove();
-}
-
-function handleLink(link, targetBlock)
-{
-    if(parashaList.some(domain => link.includes(domain))) 
-    {
-        removeElement(targetBlock);
+class ParashaBlocker {
+    constructor() {
+        this.parashaList = [];
+        this.observer = null;
     }
-}
 
-// Function to process search results for the DuckDuckGo search engine
-function duckDuckGo()
-{
-    // "All" tab
-    document.querySelectorAll('a[data-testid="result-title-a"]').forEach(link => 
-    {
-        const linkHref = link.href;
-        handleLink(linkHref, link.closest("article"));
-    });
-
-    // Images on "All" tab
-    document.querySelectorAll(".pmq91M1H9uYaJG_lxmPg").forEach(el => {
-        const link = el.querySelector(".SdDhImKi0Wx51uB1gMgj").textContent;
-        handleLink(link, el);
-    })
-
-    // "Images" tab
-    document.querySelectorAll(".nsogf_Hpj9UUxfhcwQd5").forEach(imgBlock =>
-    {
-        const link = imgBlock.querySelector(".iHufrGzRLnW5Wh3koaLG");
-        const imageDiv = imgBlock.parentNode;
-        handleLink(link.textContent, imageDiv);
-    });
-
-    // "News" tab
-    document.querySelectorAll(".O9Ipab51rBntYb0pwOQn").forEach(newsBlock => {
-        const linkDiv = newsBlock.querySelector(".hsgD5pJVzSAt58DaSA9w");
-        if(linkDiv === null)
-        {
+    async init() {
+        // Prevent running if API is missing (e.g. if you paste this in console)
+        if (!browserAPI || !browserAPI.runtime) {
+            console.error("ParashaBlocker: Extension API not found. Are you running this in the console?");
             return;
         }
 
-        const link  = linkDiv.querySelector("span").textContent;
-        handleLink(link, newsBlock);
-    });
-}
-
-function google()
-{
-    // "All" tab
-    document.querySelectorAll(".MjjYud").forEach(block => 
-    {
-        const linkEl = block.querySelector(".zReHs");
-
-        if(linkEl === null)
-        {
-            return;
-        }
-
-        const linkHref = linkEl.href;
-        if(parashaList.some(domain => linkHref.includes(domain)))
-        {
-            removeElement(block);
-        }
-    })
-}
-
-function bing()
-{
-    document.querySelectorAll(".b_algo").forEach(el => {
-        const link = el.querySelector(".b_attribution").querySelector('cite').textContent; 
-        handleLink(link, el);
-    });
-}
-
-function main() 
-{
-    duckDuckGo();
-    google();
-    bing();
-}
-
-// Load parashaList from .txt file
-async function loadParashaList()
-{
-    try
-    {
-        const url = chrome.runtime.getURL('parashaList.txt');
-        const response = await fetch(url);
-        const text = await response.text();
-        parashaList = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        await this.loadBlockList();
         
-        main();
-        const observer = new MutationObserver(main);
-        observer.observe(document.body, { childList: true, subtree: true });
+        const hostname = window.location.hostname;
+        
+        if (hostname.includes("google")) {
+            this.run(this.cleanGoogle);
+        } else if (hostname.includes("bing")) {
+            this.run(this.cleanBing);
+        } else if (hostname.includes("duckduckgo")) {
+            this.run(this.cleanDuckDuckGo);
+        }
     }
-    catch(error)
-    {
-        console.error('Failed to load parashaList.txt:', error);
+
+    async loadBlockList() {
+        try {
+            const url = browserAPI.runtime.getURL('parashaList.txt');
+            const response = await fetch(url);
+            const text = await response.text();
+            this.parashaList = text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+        } catch (error) {
+            console.error('ParashaBlocker: Failed to load list', error);
+        }
+    }
+
+    handleLink(link, elementToRemove) {
+        if (!link || !elementToRemove) return;
+        
+        if (this.parashaList.some(domain => link.includes(domain))) {
+            elementToRemove.remove();
+        }
+    }
+
+    cleanGoogle = () => {
+        document.querySelectorAll(".MjjYud").forEach(block => {
+            const linkEl = block.querySelector("a[href]");
+            if (linkEl) this.handleLink(linkEl.href, block);
+        });
+    }
+
+    cleanBing = () => {
+        document.querySelectorAll(".b_algo").forEach(block => {
+            const linkEl = block.querySelector("a");
+            if (linkEl) this.handleLink(linkEl.href, block);
+        });
+    }
+
+    cleanDuckDuckGo = () => {
+        // Results
+        // Google
+        document.querySelectorAll('article').forEach(article => {
+            const linkEl = article.querySelector('a[data-testid="result-title-a"]');
+            if (linkEl) this.handleLink(linkEl.href, article);
+        });
+
+        // Firefox
+        document.querySelectorAll('.veU5I0hFkgFGOPhX2RBE').forEach(result => {
+            const text = result.querySelector("span").textContent.toLowerCase(); 
+            
+            if (this.parashaList.some(domain => text.includes(domain))) {
+                const container = result.closest('article') || result.closest('li') || result;
+                container.remove();
+            }
+        });
+
+        // Images tab
+        // Firefox
+        document.querySelectorAll('.iHufrGzRLnW5Wh3koaLG').forEach(result => {
+            const text = result.title
+            
+            if (this.parashaList.some(domain => text.includes(domain))) {
+                const container = result.closest('article') || result.closest('li') || result;
+                container.remove();
+            }
+        });
+    }
+
+    run(cleanFunction) {
+        cleanFunction();
+        this.observer = new MutationObserver(() => cleanFunction());
+        this.observer.observe(document.body, { childList: true, subtree: true });
     }
 }
 
-// Initialize
-loadParashaList();
+const blocker = new ParashaBlocker();
+blocker.init();
